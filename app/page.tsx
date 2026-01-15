@@ -735,8 +735,13 @@ function Dashboard({ user, onLogout }: { user: any, onLogout: () => void }) {
                     </div>
                     <div className="mt-10 p-4 bg-blue-50 rounded-2xl border border-blue-100 w-full">
                       <p className="text-sm text-blue-800 font-semibold text-center leading-relaxed">
-                        {analysisData?.summary || "Your resume has been analyzed by our AI engine."}
+                        {analysisData?.summary || "Your resume has been analyzed by our local heuristic engine."}
                       </p>
+                      {analysisData?.summary?.includes("Local Analysis") && (
+                        <p className="text-[10px] text-blue-400 text-center mt-2 font-bold uppercase tracking-widest">
+                          Free Heuristic Mode Active
+                        </p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
