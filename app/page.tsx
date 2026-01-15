@@ -22,7 +22,6 @@ import {
   X
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { signUp, signIn, signOut, resetPassword } from '@/app/auth/actions'
 import { createClient } from '@/lib/supabase/client'
 
 export default function LandingPage() {
@@ -38,66 +37,63 @@ export default function LandingPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setUser(user)
-        setView('dashboard')
-      }
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) {
+      setUser(session.user)
+      setView('dashboard')
+    } else {
+      setUser(null)
+      setView('landing')
     }
-    checkUser()
+  })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser(session.user)
-        setView('dashboard')
-      } else {
-        setUser(null)
-        setView('landing')
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
+  return () => subscription.unsubscribe()
+}, [])
 
   const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setAuthError(null)
+  e.preventDefault()
+  setIsLoading(true)
+  setAuthError(null)
 
-    const formData = new FormData()
-    formData.append('email', email)
-    
+  try {
     if (view === 'forgot-password') {
-      const result = await resetPassword(formData)
-      if (result?.error) {
-        setAuthError(result.error)
-      } else {
-        setAuthError("Password reset link sent to your email!")
-      }
-      setIsLoading(false)
+      const { error } = await supabase.auth.resetPasswordForEmail(email)
+      if (error) throw error
+      setAuthError("Password reset link sent to your email!")
       return
     }
 
-    formData.append('password', password)
-    if (view === 'signup') formData.append('fullName', fullName)
-
-    const result = view === 'signup' ? await signUp(formData) : await signIn(formData)
-
-    if (result?.error) {
-      setAuthError(result.error) // This will now show the detailed error
-      setIsLoading(false)
-    } else if (result?.message) {
-      setAuthError(result.message) // Show the "Check Email" or "Success" message
-      setIsLoading(false)
-      if (view === 'signup') setView('login')
+    if (view === 'signup') {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: fullName }
+        }
+      })
+      if (error) throw error
+      setAuthError("Account created. Please check your email to verify.")
+      setView('login')
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+      if (error) throw error
     }
+  } catch (err: any) {
+    setAuthError(err.message)
+  } finally {
+    setIsLoading(false)
   }
+}
+
 
   const handleLogout = async () => {
-    await signOut()
-    setView('landing')
-  }
+  setIsLoading(true)
+  await supabase.auth.signOut()
+  setIsLoading(false)
+}
 
   const passwordRequirements = [
     { label: 'At least 8 characters', test: (p: string) => p.length >= 8 },
